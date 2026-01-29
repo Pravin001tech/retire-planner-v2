@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Info, ChevronRight } from 'lucide-react';
+import { generatePersonalizedAdvice, formatMessageForDisplay } from './utils/messageTemplates';
 
 // --- UTILITIES ---
 const formatCurrency = (val) => {
@@ -19,39 +20,73 @@ const calculateProjections = (currentAge, currentSavings, retireAge, income, mon
   try {
     const data = [];
     const endAge = 95;
-    const growthRate = 0.06;
-    const growthRateRetired = 0.04;
+    const annualReturn = 0.06;
+    const annualReturnRetired = 0.04;
+    const inflationRate = 0.03;
+
+    // Monthly rates for proper compounding
+    const monthlyRate = annualReturn / 12;
+    const monthlyRateRetired = annualReturnRetired / 12;
+    const monthlyInflation = inflationRate / 12;
+
+    // Real return during retirement (inflation-adjusted)
+    const realAnnualReturn = (1 + annualReturnRetired) / (1 + inflationRate) - 1;
+    const realMonthlyRate = realAnnualReturn / 12;
 
     let safeRetireAge = Math.min(retireAge, endAge - 1);
-
-    let projectedBalance = currentSavings;
     const yearsInRetirement = endAge - safeRetireAge;
-    const denom = (growthRateRetired - 0.03) === 0 ? 0.0001 : (growthRateRetired - 0.03);
-    const targetNestEgg = (retirementExpenses * 12) * ((1 - Math.pow(1 + denom, -yearsInRetirement)) / denom);
+    const monthsInRetirement = yearsInRetirement * 12;
 
+    // Convert annual retirement expenses to monthly
+    const monthlyRetirementExpenses = retirementExpenses / 12;
+
+    // Calculate target nest egg using present value of annuity
+    // PV = PMT × [(1 - (1 + r)^-n) / r]
+    let targetNestEgg = 0;
+    if (realMonthlyRate !== 0) {
+      targetNestEgg = monthlyRetirementExpenses * ((1 - Math.pow(1 + realMonthlyRate, -monthsInRetirement)) / realMonthlyRate);
+    } else {
+      targetNestEgg = monthlyRetirementExpenses * monthsInRetirement;
+    }
+
+    // Initialize projected balance
+    let projectedBalance = currentSavings;
+
+    // Simulate month by month for accuracy
     for (let age = currentAge; age <= endAge; age++) {
       const isRetired = age >= safeRetireAge;
 
-      if (!isRetired) {
-        projectedBalance += (monthlySavings * 12);
-        projectedBalance += (projectedBalance * growthRate);
-      } else {
-        projectedBalance -= (retirementExpenses * 12);
-        projectedBalance += (projectedBalance * growthRateRetired);
-      }
-      const displayProjected = Math.max(0, projectedBalance);
+      // Process 12 months for each year
+      for (let month = 0; month < 12; month++) {
+        if (!isRetired) {
+          // Pre-retirement: add monthly contribution, then apply growth
+          projectedBalance += monthlySavings;
+          projectedBalance *= (1 + monthlyRate);
+        } else {
+          // Post-retirement: subtract expenses, apply real return
+          projectedBalance -= monthlyRetirementExpenses;
+          projectedBalance *= (1 + realMonthlyRate);
+        }
 
+        // Prevent negative balance
+        if (projectedBalance < 0) projectedBalance = 0;
+      }
+
+      const displayProjected = Math.round(projectedBalance);
+
+      // Calculate recommended balance trajectory
       let recommendedBalance = 0;
       if (!isRetired) {
         const totalWorkingYears = safeRetireAge - currentAge;
         const yearsWorked = age - currentAge;
+
         if (totalWorkingYears > 0) {
           const progress = yearsWorked / totalWorkingYears;
           const base = 1.065;
           const numerator = Math.pow(base, yearsWorked) - 1;
           const denominator = Math.pow(base, totalWorkingYears) - 1;
 
-          if (denominator === 0) {
+          if (denominator === 0 || isNaN(denominator)) {
             recommendedBalance = currentSavings + (targetNestEgg - currentSavings) * progress;
           } else {
             recommendedBalance = currentSavings + (targetNestEgg - currentSavings) * (numerator / denominator);
@@ -70,7 +105,7 @@ const calculateProjections = (currentAge, currentSavings, retireAge, income, mon
 
       data.push({
         age,
-        projected: Math.round(displayProjected),
+        projected: displayProjected,
         recommended: Math.round(recommendedBalance),
         isRetired
       });
@@ -272,13 +307,13 @@ const CustomChart = ({ data, retireAge }) => {
             </svg>
 
             {/* Enhanced Legend */}
-            <div className="absolute top-3 right-3 flex flex-col gap-2 bg-white/95 backdrop-blur-sm p-2.5 rounded-lg shadow-md border border-gray-200">
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
-                    <div className="w-3.5 h-3.5 bg-[#059669] rounded-md shadow-sm"></div>
+            <div className="absolute -top-16 right-2 flex flex-row gap-4 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-md border border-gray-200">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                    <div className="w-3 h-3 bg-[#059669] rounded-md shadow-sm"></div>
                     <span>Projected</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
-                    <div className="w-3.5 h-3.5 bg-[#3730a3] rounded-md shadow-sm"></div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                    <div className="w-3 h-3 bg-[#3730a3] rounded-md shadow-sm"></div>
                     <span>Recommended</span>
                 </div>
             </div>
@@ -339,10 +374,35 @@ export default function App() {
   };
 
   const getAdvisorMessage = () => {
-    if (ratio > 1.15) return "Incredible work! You are projected to have significantly more than you need. You might even consider retiring earlier!";
-    if (ratio >= 0.95) return "Nice bump in monthly savings—that extra contribution does a lot of heavy lifting for your future self. You are on track.";
-    if (ratio >= 0.75) return "You're getting there, but retiring that early leaves your projected savings under pressure. Consider pushing your retirement age out a few years.";
-    return "Retiring this early leaves your projected savings under a lot of pressure. You may run short. Increasing savings now avoids running short later.";
+    // Use dynamic personalized advice
+    const userData = {
+      currentAge: age,
+      retireAge,
+      currentSavings,
+      monthlySavings,
+      retirementExpenses,
+    };
+
+    const projections = {
+      projectedAtRetire,
+      recommendedAtRetire,
+    };
+
+    return generatePersonalizedAdvice(userData, projections);
+  };
+
+  // Helper to format currency for highlighting
+  const highlightCurrency = (text) => {
+    // Match currency patterns like $123K, $1.5M, $500
+    return text.split(/(\$[0-9.KM]+)/g).map((part, i) =>
+      part.startsWith('$') ? (
+        <span key={i} className="font-bold text-orange-600 bg-orange-50 px-1 rounded">
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
   };
 
   const calculateMonthlyGoal = () => {
@@ -423,13 +483,41 @@ export default function App() {
                          <div className="bg-white p-2 rounded-xl rounded-tl-none shadow-sm border border-orange-100/50 mb-2 relative">
                              <div className="absolute top-0 -left-1.5 w-3 h-3 bg-white transform rotate-45 border-l border-b border-orange-100/50"></div>
 
-                             <p className="text-slate-700 text-xs leading-relaxed relative z-10">
-                                 {getAdvisorMessage().split(' ').map((word, i) =>
-                                    ['pressure.', 'short.', 'savings', 'retirement', 'track.', 'lifting'].some(k => word.includes(k)) ?
-                                    <span key={i} className="font-bold text-slate-900">{word} </span> :
-                                    <span key={i}>{word} </span>
-                                 )}
-                             </p>
+                             <div className="text-slate-700 text-xs leading-relaxed relative z-10">
+                                 {(() => {
+                                   const msg = getAdvisorMessage();
+                                   return (
+                                     <div>
+                                       <p className="mb-1">{highlightCurrency(msg.body)}</p>
+                                       {msg.actions && msg.actions.length > 0 && (
+                                         <div className="mt-2 space-y-1">
+                                           {msg.actions.map((action, i) => (
+                                             <div key={i} className="text-[10px] bg-orange-50 p-1.5 rounded border border-orange-100">
+                                               <div className="font-semibold text-slate-800">{highlightCurrency(action.text)}</div>
+                                               <div className="text-slate-500 mt-0.5">{action.impact}</div>
+                                             </div>
+                                           ))}
+                                         </div>
+                                       )}
+                                       {msg.bonus && (
+                                         <div className="mt-2 text-[10px] bg-emerald-50 p-1.5 rounded border border-emerald-100 text-emerald-700">
+                                           💡 {highlightCurrency(msg.bonus)}
+                                         </div>
+                                       )}
+                                       {msg.options && msg.options.length > 0 && (
+                                         <div className="mt-2 space-y-1">
+                                           {msg.options.map((option, i) => (
+                                             <div key={i} className="text-[10px] flex items-start gap-1">
+                                               <span className="text-emerald-500">•</span>
+                                               <span>{highlightCurrency(option)}</span>
+                                             </div>
+                                           ))}
+                                         </div>
+                                       )}
+                                     </div>
+                                   );
+                                 })()}
+                             </div>
                          </div>
 
                          <div className="relative flex items-center">
