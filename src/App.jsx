@@ -203,7 +203,9 @@ const CustomChart = ({ data, retireAge }) => {
 
     if (dims.w === 0 || !data || data.length === 0) return <div ref={containerRef} className="h-full w-full" />;
 
-    const padding = { top: 25, right: 15, bottom: 40, left: 60 };
+    const padding = dims.w < 640
+      ? { top: 20, right: 10, bottom: 35, left: 45 }  // Mobile
+      : { top: 25, right: 15, bottom: 40, left: 60 }; // Desktop
     const chartW = dims.w - padding.left - padding.right;
     const chartH = dims.h - padding.top - padding.bottom;
 
@@ -307,7 +309,7 @@ const CustomChart = ({ data, retireAge }) => {
             </svg>
 
             {/* Enhanced Legend */}
-            <div className="absolute -top-16 right-2 flex flex-row gap-4 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-md border border-gray-200">
+            <div className="absolute -top-14 lg:-top-16 right-1 lg:right-2 flex flex-row gap-2 lg:gap-4 bg-white/95 backdrop-blur-sm px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg shadow-md border border-gray-200">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
                     <div className="w-3 h-3 bg-[#059669] rounded-md shadow-sm"></div>
                     <span>Projected</span>
@@ -422,10 +424,10 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#f3f4f6] font-sans text-slate-800 flex flex-row antialiased">
+    <div className="h-screen w-screen overflow-hidden bg-[#f3f4f6] font-sans text-slate-800 flex flex-col lg:flex-row antialiased">
 
       {/* --- LEFT SIDEBAR: INPUTS --- */}
-      <div className="w-[260px] bg-[#f8f7f5] border-r border-gray-200 flex flex-col h-full flex-shrink-0 z-20">
+      <div className="w-full lg:w-[260px] bg-[#f8f7f5] border-r border-gray-200 lg:border-b-0 border-b lg:flex flex-col h-auto lg:h-full max-h-[35vh] lg:max-h-none overflow-y-auto flex-shrink-0 z-20">
         <div className="p-3 pb-1.5 sticky top-0 bg-[#f8f7f5] z-10">
           <div className="flex items-center gap-2 mb-3">
              <div className="w-8 h-8 bg-gradient-to-tr from-orange-400 to-orange-600 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-lg shadow-orange-200">
@@ -449,7 +451,7 @@ export default function App() {
       </div>
 
       {/* --- MIDDLE COLUMN: CHART & ADVISOR --- */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
+      <div className="flex-1 flex flex-col h-auto lg:h-full overflow-y-auto lg:overflow-hidden bg-white min-h-0 lg:min-w-0">
 
         <div className="flex-1 p-3 flex flex-col">
             <div className="flex justify-between items-end mb-2 shrink-0">
@@ -460,7 +462,7 @@ export default function App() {
             </div>
 
             {/* CHART CONTAINER */}
-            <div className="flex-1 min-h-[220px] bg-white border border-slate-100 rounded-xl shadow-sm relative p-2.5 mb-2">
+            <div className="flex-1 min-h-[200px] lg:min-h-[220px] h-[250px] lg:h-auto bg-white border border-slate-100 rounded-xl shadow-sm relative p-2 lg:p-2.5 mb-2">
                 <CustomChart data={data} retireAge={retireAge} />
             </div>
 
@@ -537,7 +539,7 @@ export default function App() {
       </div>
 
       {/* --- RIGHT COLUMN: STATS PANEL --- */}
-      <div className="w-[240px] bg-slate-50 border-l border-gray-200 p-3 overflow-y-auto flex-shrink-0">
+      <div className="w-full lg:w-[240px] bg-slate-50 border-l border-gray-200 lg:border-t-0 border-t p-3 overflow-y-auto flex-shrink-0">
              <div className="flex items-center gap-2 mb-4">
                 <div className="h-0.5 flex-1 bg-gray-200 rounded-full"></div>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Analysis</span>
