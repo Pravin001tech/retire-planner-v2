@@ -453,7 +453,7 @@ export default function App() {
       </div>
 
       {/* --- MIDDLE COLUMN: CHART & ADVISOR --- */}
-      <div className="flex-1 flex flex-col h-auto md:h-full overflow-y-auto md:overflow-hidden bg-white min-w-0">
+      <div className="w-full flex flex-col min-h-[400px] md:h-full md:flex-1 overflow-y-auto md:overflow-hidden bg-white min-w-0">
 
         <div className="flex-1 p-2 md:p-3 flex flex-col">
             <div className="flex justify-between items-end mb-2 shrink-0">
